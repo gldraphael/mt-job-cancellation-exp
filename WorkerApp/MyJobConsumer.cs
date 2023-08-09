@@ -7,17 +7,9 @@ using System.Threading.Tasks;
 
 namespace WorkerApp;
 
-public class MyJobConsumer : IConsumer<BeginJobCommand>
+public abstract class ImageCapJobConsumer<T> : IConsumer<T> where T : class
 {
-    private int IsRunning = 1;
-    private readonly ILogger<MyJobConsumer> logger;
-
-    public MyJobConsumer(ILogger<MyJobConsumer> logger)
-    {
-        this.logger = logger;
-    }
-
-    public async Task Consume(ConsumeContext<BeginJobCommand> context)
+    public async Task Consume(ConsumeContext<T> context)
     {
         var jobId = Guid.NewGuid();
 
@@ -29,19 +21,7 @@ public class MyJobConsumer : IConsumer<BeginJobCommand>
         cts.Cancel();
     }
 
-    private async Task DoJob(ConsumeContext<BeginJobCommand> context, Guid jobId, CancellationToken token)
-    {
-        await context.Publish(new JobStartedEvent(Name: context.Message.Name, JobId: jobId));
-
-        for (int i = 0; i < 10000000; i++) //1
-        {
-            if (token.IsCancellationRequested) return;
-
-            await Task.Delay(TimeSpan.FromSeconds(5));
-            logger.LogInformation("Running job {@jobId}", jobId);
-            await context.Publish(new JobRunningEvent(Name: context.Message.Name, JobId: jobId));
-        }
-    }
+    public abstract Task DoJob(ConsumeContext<T> context, Guid jobId, CancellationToken token);
 
     private async Task CheckCancelation(Guid jobId, CancellationToken token)
     {
@@ -54,6 +34,30 @@ public class MyJobConsumer : IConsumer<BeginJobCommand>
             {
                 break;
             }
+        }
+    }
+}
+
+public class MyJobConsumer : ImageCapJobConsumer<BeginJobCommand>
+{
+    private readonly ILogger<MyJobConsumer> logger;
+
+    public MyJobConsumer(ILogger<MyJobConsumer> logger)
+    {
+        this.logger = logger;
+    }
+
+    public override async Task DoJob(ConsumeContext<BeginJobCommand> context, Guid jobId, CancellationToken token)
+    {
+        await context.Publish(new JobStartedEvent(Name: context.Message.Name, JobId: jobId));
+
+        for (int i = 0; i < 10000000; i++) //1
+        {
+            if (token.IsCancellationRequested) return;
+
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            logger.LogInformation("Running job {@jobId}", jobId);
+            await context.Publish(new JobRunningEvent(Name: context.Message.Name, JobId: jobId));
         }
     }
 }
