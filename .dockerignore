@@ -1,0 +1,10 @@
+.git
+**/Dockerfile
+.DS_Store
+*.md
+docs/
+**/bin/
+**/obj/
+**/publish/
+.vs
+.vscode
