@@ -1,10 +1,13 @@
-﻿using CommonLib.Extensions;
+﻿using ClientApp;
+using CommonLib.Extensions;
 using CommonLib.MessageContracts;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using System;
 using System.IO;
+using System.Threading.Tasks;
 
 
 // setup configuration
@@ -27,9 +30,14 @@ var serviceProvider = new ServiceCollection()
             config: config,
             configureDependencies: x =>
             {
-                x.AddRequestClient<GetInfo>();
+                x.AddConsumer<InitiateCancellationConsumer>();
             },
-            configureEndpoints: (bc, rc, sp) => {  },
+            configureEndpoints: (bc, rc, sp) => {
+                //bc.ReceiveEndpoint("mt-job-started-handler", ce =>
+                //{
+                //    ce.Consumer<InitiateCancellationConsumer>();
+                //});
+            },
             configureRabbitMq: (rbc, sp) => { },
             configureAzureServiceBus: (sbc, sp) => { }
         )
@@ -42,7 +50,11 @@ await bus.StartAsync();
 
 try
 {
-    
+    // await bus.Publish(new BeginJobCommand("From Sergey and Galdin!"));
+
+    // await Task.Delay(TimeSpan.FromHours(1));
+
+    await bus.Publish(new CancelJobCommand(JobId: Guid.Parse("aa18b525-ebaa-4173-97c2-fc66f387b98b")));
 }
 finally
 {

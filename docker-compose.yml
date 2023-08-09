@@ -15,18 +15,18 @@ services:
       - RabbitMQ__Password=${RabbitMQ_Pass}
       - ConnectionStrings__AzureServiceBus=${ASB_ConnectionString}
 
-  client:
-    tty: true
-    restart: unless-stopped
-    build:
+  # client:
+  #   tty: true
+  #   restart: unless-stopped
+  #   build:
 
-      context: .
-      dockerfile: ./ClientApp/Dockerfile
-    depends_on:
-      - worker
-    environment: 
-      - Messaging__Transport=${Transport}
-      - RabbitMQ__Host=${RabbitMQ_Host}
-      - RabbitMQ__Username=${RabbitMQ_User}
-      - RabbitMQ__Password=${RabbitMQ_Pass}
-      - ConnectionStrings__AzureServiceBus=${ASB_ConnectionString}
+  #     context: .
+  #     dockerfile: ./ClientApp/Dockerfile
+  #   depends_on:
+  #     - worker
+  #   environment: 
+  #     - Messaging__Transport=${Transport}
+  #     - RabbitMQ__Host=${RabbitMQ_Host}
+  #     - RabbitMQ__Username=${RabbitMQ_User}
+  #     - RabbitMQ__Password=${RabbitMQ_Pass}
+  #     - ConnectionStrings__AzureServiceBus=${ASB_ConnectionString}

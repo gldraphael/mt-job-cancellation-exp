@@ -40,6 +40,7 @@ public static class ServiceCollectionMassTransitExtensions
                     if (rabbitmqOptions.HasMissingValues is false) throw new InvalidOperationException("Some rabbitmq options are missing.");
                     x.AddBus(provider => Bus.Factory.CreateUsingRabbitMq(sbc =>
                     {
+
                         sbc.Host(rabbitmqOptions.Host, h =>
                         {
                             h.Username(rabbitmqOptions.Username);
