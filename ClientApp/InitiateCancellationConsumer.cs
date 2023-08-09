@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace ClientApp;
 
-public class InitiateCancellationConsumer : IConsumer<JobStarted>
+public class InitiateCancellationConsumer : IConsumer<JobStartedEvent>
 {
-    public async Task Consume(ConsumeContext<JobStarted> context)
+    public async Task Consume(ConsumeContext<JobStartedEvent> context)
     {
         await Task.Delay(17_000);
         await context.Publish(new CancelJobCommand(JobId: context.Message.JobId));

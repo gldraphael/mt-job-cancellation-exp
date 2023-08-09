@@ -20,56 +20,40 @@ public class MyJobConsumer : IConsumer<BeginJobCommand>
     public async Task Consume(ConsumeContext<BeginJobCommand> context)
     {
         var jobId = Guid.NewGuid();
-        try
-        {
-            await Task.WhenAny(
-                DoJob(context, jobId),
-                CheckCancelation(context, jobId)
-            ).ConfigureAwait(false);
-        }
-        catch (JobCancelledException)
-        {
-            logger.LogInformation("Canceled job {@jobId}", jobId);
-            await context.Publish(new JobCanceledEvent(jobId, context.Message.Name));
-        }
+
+        using var cts = new CancellationTokenSource();
+        var completedTask = await Task.WhenAny(
+                DoJob(context, jobId, cts.Token),
+                CheckCancelation(jobId, cts.Token)
+            );
+        cts.Cancel();
     }
 
-    private async Task DoJob(ConsumeContext<BeginJobCommand> context, Guid jobId)
+    private async Task DoJob(ConsumeContext<BeginJobCommand> context, Guid jobId, CancellationToken token)
     {
-        
         await context.Publish(new JobStartedEvent(Name: context.Message.Name, JobId: jobId));
 
-        for(int i = 0; i < 10000000; i++)
+        for (int i = 0; i < 10000000; i++) //1
         {
+            if (token.IsCancellationRequested) return;
+
             await Task.Delay(TimeSpan.FromSeconds(5));
             logger.LogInformation("Running job {@jobId}", jobId);
             await context.Publish(new JobRunningEvent(Name: context.Message.Name, JobId: jobId));
         }
-
-        IsRunning = Interlocked.Decrement(ref IsRunning);
     }
 
-    private async Task CheckCancelation(ConsumeContext<BeginJobCommand> context, Guid jobId)
+    private async Task CheckCancelation(Guid jobId, CancellationToken token)
     {
-        while (IsRunning > 0)
+        while (true)
         {
+            if (token.IsCancellationRequested) return;
+
             await Task.Delay(TimeSpan.FromSeconds(1));
             if (FakeCache.CheckForCancellation(jobId))
             {
-                throw new JobCancelledException();
+                break;
             }
         }
     }
-}
-
-
-[Serializable]
-public class JobCancelledException : Exception
-{
-    public JobCancelledException() { }
-    public JobCancelledException(string message) : base(message) { }
-    public JobCancelledException(string message, Exception inner) : base(message, inner) { }
-    protected JobCancelledException(
-      System.Runtime.Serialization.SerializationInfo info,
-      System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
 }
