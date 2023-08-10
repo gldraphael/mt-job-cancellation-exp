@@ -9,6 +9,11 @@ namespace WorkerApp;
 
 public abstract class ImageCapJobConsumer<T> : IConsumer<T> where T : class
 {
+    private readonly IJobCache cache;
+
+    public ImageCapJobConsumer(IJobCache cache) =>
+        this.cache = cache;
+
     public async Task Consume(ConsumeContext<T> context)
     {
         var jobId = Guid.NewGuid();
@@ -30,7 +35,7 @@ public abstract class ImageCapJobConsumer<T> : IConsumer<T> where T : class
             if (token.IsCancellationRequested) return;
 
             await Task.Delay(TimeSpan.FromSeconds(1));
-            if (FakeCache.CheckForCancellation(jobId))
+            if (await cache.CheckForCancellation(jobId))
             {
                 break;
             }
@@ -42,7 +47,7 @@ public class MyJobConsumer : ImageCapJobConsumer<BeginJobCommand>
 {
     private readonly ILogger<MyJobConsumer> logger;
 
-    public MyJobConsumer(ILogger<MyJobConsumer> logger)
+    public MyJobConsumer(ILogger<MyJobConsumer> logger, IJobCache cache) : base(cache)
     {
         this.logger = logger;
     }

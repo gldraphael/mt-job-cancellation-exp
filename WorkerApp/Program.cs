@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using WorkerApp.Infrastructure.Redis;
 
 namespace WorkerApp;
 
@@ -47,5 +48,10 @@ public class Program
                         
                     },
                     configureAzureServiceBus: (sbc, sp) => { });
+
+                services.Configure<RedisConfig>(hostContext.Configuration.GetSection("Redis"));
+                services.AddSingleton<IRedisConnectionProvider, RedisConnectionProvider>();
+                services.AddTransient<IRedisService, RedisService>();
+                services.AddTransient<IJobCache, RedisService>();
             });
 }
