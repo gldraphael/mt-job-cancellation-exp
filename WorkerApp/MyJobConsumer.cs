@@ -7,9 +7,39 @@ using System.Threading.Tasks;
 
 namespace WorkerApp;
 
-public class MyJobConsumer : IConsumer<BeginJobCommand>
+public abstract class ImageCapJobConsumer<T> : IConsumer<T> where T : class
 {
-    private int IsRunning = 1;
+    public async Task Consume(ConsumeContext<T> context)
+    {
+        var jobId = Guid.NewGuid();
+
+        using var cts = new CancellationTokenSource();
+        var completedTask = await Task.WhenAny(
+                DoJob(context, jobId, cts.Token),
+                CheckCancelation(jobId, cts.Token)
+            );
+        cts.Cancel();
+    }
+
+    public abstract Task DoJob(ConsumeContext<T> context, Guid jobId, CancellationToken token);
+
+    private async Task CheckCancelation(Guid jobId, CancellationToken token)
+    {
+        while (true)
+        {
+            if (token.IsCancellationRequested) return;
+
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            if (FakeCache.CheckForCancellation(jobId))
+            {
+                break;
+            }
+        }
+    }
+}
+
+public class MyJobConsumer : ImageCapJobConsumer<BeginJobCommand>
+{
     private readonly ILogger<MyJobConsumer> logger;
 
     public MyJobConsumer(ILogger<MyJobConsumer> logger)
@@ -17,59 +47,17 @@ public class MyJobConsumer : IConsumer<BeginJobCommand>
         this.logger = logger;
     }
 
-    public async Task Consume(ConsumeContext<BeginJobCommand> context)
+    public override async Task DoJob(ConsumeContext<BeginJobCommand> context, Guid jobId, CancellationToken token)
     {
-        var jobId = Guid.NewGuid();
-        try
-        {
-            await Task.WhenAny(
-                DoJob(context, jobId),
-                CheckCancelation(context, jobId)
-            ).ConfigureAwait(false);
-        }
-        catch (JobCancelledException)
-        {
-            logger.LogInformation("Canceled job {@jobId}", jobId);
-            await context.Publish(new JobCanceledEvent(jobId, context.Message.Name));
-        }
-    }
-
-    private async Task DoJob(ConsumeContext<BeginJobCommand> context, Guid jobId)
-    {
-        
         await context.Publish(new JobStartedEvent(Name: context.Message.Name, JobId: jobId));
 
-        for(int i = 0; i < 10000000; i++)
+        for (int i = 0; i < 10000000; i++) //1
         {
+            if (token.IsCancellationRequested) return;
+
             await Task.Delay(TimeSpan.FromSeconds(5));
             logger.LogInformation("Running job {@jobId}", jobId);
             await context.Publish(new JobRunningEvent(Name: context.Message.Name, JobId: jobId));
         }
-
-        IsRunning = Interlocked.Decrement(ref IsRunning);
     }
-
-    private async Task CheckCancelation(ConsumeContext<BeginJobCommand> context, Guid jobId)
-    {
-        while (IsRunning > 0)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(1));
-            if (FakeCache.CheckForCancellation(jobId))
-            {
-                throw new JobCancelledException();
-            }
-        }
-    }
-}
-
-
-[Serializable]
-public class JobCancelledException : Exception
-{
-    public JobCancelledException() { }
-    public JobCancelledException(string message) : base(message) { }
-    public JobCancelledException(string message, Exception inner) : base(message, inner) { }
-    protected JobCancelledException(
-      System.Runtime.Serialization.SerializationInfo info,
-      System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
 }

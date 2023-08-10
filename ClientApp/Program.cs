@@ -33,10 +33,10 @@ var serviceProvider = new ServiceCollection()
                 x.AddConsumer<InitiateCancellationConsumer>();
             },
             configureEndpoints: (bc, rc, sp) => {
-                //bc.ReceiveEndpoint("mt-job-started-handler", ce =>
-                //{
-                //    ce.Consumer<InitiateCancellationConsumer>();
-                //});
+                bc.ReceiveEndpoint("mt-job-started-handler", ce =>
+                {
+                    ce.ConfigureConsumer<InitiateCancellationConsumer>(sp);
+                });
             },
             configureRabbitMq: (rbc, sp) => { },
             configureAzureServiceBus: (sbc, sp) => { }
@@ -50,11 +50,13 @@ await bus.StartAsync();
 
 try
 {
-    // await bus.Publish(new BeginJobCommand("From Sergey and Galdin!"));
+    await bus.Publish(new BeginJobCommand("From Sergey and Galdin!"));
 
-    // await Task.Delay(TimeSpan.FromHours(1));
+    Console.ReadKey();
 
-    await bus.Publish(new CancelJobCommand(JobId: Guid.Parse("aa18b525-ebaa-4173-97c2-fc66f387b98b")));
+    //await Task.Delay(TimeSpan.FromHours(1));
+
+    //await bus.Publish(new CancelJobCommand(JobId: Guid.Parse("aa18b525-ebaa-4173-97c2-fc66f387b98b")));
 }
 finally
 {
