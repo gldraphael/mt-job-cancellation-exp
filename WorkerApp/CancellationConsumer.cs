@@ -6,9 +6,13 @@ namespace WorkerApp;
 
 public class CancellationConsumer : IConsumer<CancelJobCommand>
 {
-    public Task Consume(ConsumeContext<CancelJobCommand> context)
+    private readonly IJobCache cache;
+
+    public CancellationConsumer(IJobCache cache) =>
+        this.cache = cache;
+
+    public async Task Consume(ConsumeContext<CancelJobCommand> context)
     {
-        FakeCache.AddCancellationRequest(context.Message.JobId);
-        return Task.CompletedTask;
+        await cache.AddCancellationRequest(context.Message.JobId);
     }
 }
